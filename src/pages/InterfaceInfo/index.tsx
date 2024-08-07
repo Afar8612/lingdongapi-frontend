@@ -3,11 +3,8 @@ import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns, ProDescriptionsItemProps } from '@ant-design/pro-components';
 import {
   FooterToolbar,
-  ModalForm,
   PageContainer,
   ProDescriptions,
-  ProFormText,
-  ProFormTextArea,
   ProTable,
 } from '@ant-design/pro-components';
 import '@umijs/max';
@@ -15,29 +12,35 @@ import { Button, Drawer, Input, message } from 'antd';
 import React, { useRef, useState } from 'react';
 import type { FormValueType } from './components/UpdateForm';
 import UpdateForm from './components/UpdateForm';
-import {listInterfaceInfoByPageUsingGet} from "@/services/lingdongapi-backend/interfaceInfoController";
+import {
+  addInterfaceInfoUsingPost, deleteInterfaceInfoUsingPost,
+  listInterfaceInfoByPageUsingGet, updateInterfaceInfoUsingPost
+} from "@/services/lingdongapi-backend/interfaceInfoController";
 import type {SortOrder} from "antd/lib/table/interface";
+import CreateModal from "@/pages/InterfaceInfo/components/CreateModal";
+import createModel from "@/pages/InterfaceInfo/components/CreateModal";
+import UpdateModal from "@/pages/InterfaceInfo/components/UpdateModal";
 
 /**
  * @en-US Add node
  * @zh-CN 添加节点
  * @param fields
  */
-const handleAdd = async (fields: API.RuleListItem) => {
-  const hide = message.loading('正在添加');
-  try {
-    await addRule({
-      ...fields,
-    });
-    hide();
-    message.success('Added successfully');
-    return true;
-  } catch (error) {
-    hide();
-    message.error('Adding failed, please try again!');
-    return false;
-  }
-};
+// const handleAdd = async (fields: API.InterfaceInfo) => {
+//   const hide = message.loading('正在添加');
+//   try {
+//     await addInterfaceInfoUsingPost({
+//       ...fields,
+//     });
+//     hide();
+//     message.success('创建成功');
+//     return true;
+//   } catch (error) {
+//     hide();
+//     message.error('Adding failed, please try again!');
+//     return false;
+//   }
+// };
 
 /**
  * @en-US Update node
@@ -45,23 +48,23 @@ const handleAdd = async (fields: API.RuleListItem) => {
  *
  * @param fields
  */
-const handleUpdate = async (fields: FormValueType) => {
-  const hide = message.loading('Configuring');
-  try {
-    await updateRule({
-      name: fields.name,
-      desc: fields.desc,
-      key: fields.key,
-    });
-    hide();
-    message.success('Configuration is successful');
-    return true;
-  } catch (error) {
-    hide();
-    message.error('Configuration failed, please try again!');
-    return false;
-  }
-};
+// const handleUpdate = async (fields: FormValueType) => {
+//   const hide = message.loading('Configuring');
+//   try {
+//     await updateRule({
+//       name: fields.name,
+//       desc: fields.desc,
+//       key: fields.key,
+//     });
+//     hide();
+//     message.success('Configuration is successful');
+//     return true;
+//   } catch (error) {
+//     hide();
+//     message.error('Configuration failed, please try again!');
+//     return false;
+//   }
+// };
 
 /**
  *  Delete node
@@ -69,22 +72,22 @@ const handleUpdate = async (fields: FormValueType) => {
  *
  * @param selectedRows
  */
-const handleRemove = async (selectedRows: API.RuleListItem[]) => {
-  const hide = message.loading('正在删除');
-  if (!selectedRows) return true;
-  try {
-    await removeRule({
-      key: selectedRows.map((row) => row.key),
-    });
-    hide();
-    message.success('Deleted successfully and will refresh soon');
-    return true;
-  } catch (error) {
-    hide();
-    message.error('Delete failed, please try again');
-    return false;
-  }
-};
+// const handleRemove = async (selectedRows: API.RuleListItem[]) => {
+//   const hide = message.loading('正在删除');
+//   if (!selectedRows) return true;
+//   try {
+//     await removeRule({
+//       key: selectedRows.map((row) => row.key),
+//     });
+//     hide();
+//     message.success('Deleted successfully and will refresh soon');
+//     return true;
+//   } catch (error) {
+//     hide();
+//     message.error('Delete failed, please try again');
+//     return false;
+//   }
+// };
 const TableList: React.FC = () => {
   /**
    * @en-US Pop-up window of new window
@@ -102,20 +105,93 @@ const TableList: React.FC = () => {
   const [selectedRowsState, setSelectedRows] = useState<API.RuleListItem[]>([]);
 
   /**
+   * @en-US Add node
+   * @zh-CN 添加节点
+   * @param fields
+   */
+  const handleAdd = async (fields: API.InterfaceInfo) => {
+    const hide = message.loading('正在添加');
+    try {
+      await addInterfaceInfoUsingPost({
+        ...fields,
+      });
+      hide();
+      message.success('创建成功');
+      actionRef.current?.reload();
+      handleModalOpen(false);
+      return true;
+    } catch (error : any) {
+      hide();
+      message.error('创建失败' + error.message);
+      return false;
+    }
+  };
+
+  /**
+   * @en-US Update node
+   * @zh-CN 更新节点
+   *
+   * @param fields
+   */
+  const handleUpdate = async (fields:  API.InterfaceInfo) => {
+    if (!currentRow) {
+      return;
+    }
+    const hide = message.loading('修改中');
+    try {
+      await updateInterfaceInfoUsingPost({
+        id: currentRow.id,
+        ...fields
+      });
+      hide();
+      message.success('操作成功');
+      return true;
+    } catch (error: any) {
+      hide();
+      message.error('操作失败，' + error.message);
+      return false;
+    }
+  };
+
+  /**
+   *  Delete node
+   * @zh-CN 删除节点
+   *
+   * @param selectedRows
+   */
+  const handleRemove = async (record: API.InterfaceInfo) => {
+    const hide = message.loading('正在删除');
+    if (!record) return true;
+    try {
+      await deleteInterfaceInfoUsingPost({
+        id: record.id
+      });
+      hide();
+      message.success('删除成功');
+      actionRef.current?.reload();
+      return true;
+    } catch (error: any) {
+      hide();
+      message.error('删除失败' + error.message);
+      return false;
+    }
+  };
+
+  /**
    * @en-US International configuration
    * @zh-CN 国际化配置
    * */
 
   const columns: ProColumns<API.InterfaceInfo>[] = [
     {
-      title: 'id',
-      dataIndex: 'id',
-      valueType: 'index'
-    },
-    {
       title: '接口名称',
       dataIndex: 'name',
-      valueType: 'text'
+      valueType: 'text',
+      formItemProps:{
+        rules: [{
+          required: true
+        }],
+      }
     },
     {
       title: '描述',
@@ -161,27 +237,13 @@ const TableList: React.FC = () => {
       title: '创建时间',
       dataIndex: 'createTime',
       valueType: 'dateTime',
+      hideInForm: true,
     },
     {
       title: '更新时间',
       dataIndex: 'updateTime',
       valueType: 'dateTime',
-    },
-    {
-      title: '上次调度时间',
-      sorter: true,
-      dataIndex: 'updatedAt',
-      valueType: 'dateTime',
-      renderFormItem: (item, { defaultRender, ...rest }, form) => {
-        const status = form.getFieldValue('status');
-        if (`${status}` === '0') {
-          return false;
-        }
-        if (`${status}` === '3') {
-          return <Input {...rest} placeholder={'请输入异常原因！'} />;
-        }
-        return defaultRender(item);
-      },
+      hideInForm: true,
     },
     {
       title: '操作',
@@ -195,11 +257,17 @@ const TableList: React.FC = () => {
             setCurrentRow(record);
           }}
         >
-          配置
+          修改
         </a>,
-        <a key="subscribeAlert" href="https://procomponents.ant.design/">
-          订阅警报
+        <a
+          key="config"
+          onClick={() => {
+            handleRemove(record);
+          }}
+        >
+          删除
         </a>,
+
       ],
     },
   ];
@@ -224,14 +292,20 @@ const TableList: React.FC = () => {
           </Button>,
         ]}
         request={async (params , sort: Record<string, SortOrder>, filter: Record<string, (string | number)[] | null>) =>{
-          const res = await listInterfaceInfoByPageUsingGet({
+          const res: any = await listInterfaceInfoByPageUsingGet({
             ...params
           })
           if(res?.data) {
             return {
               data: res.data.records || [],
               success: true,
-              total: res.total,
+              total: res?.data.total || 0,
+            }
+          }else {
+            return {
+              data: [],
+              success: false,
+              total: 0,
             }
           }
         }}
@@ -273,34 +347,9 @@ const TableList: React.FC = () => {
           <Button type="primary">批量审批</Button>
         </FooterToolbar>
       )}
-      <ModalForm
-        title={'新建规则'}
-        width="400px"
-        open={createModalOpen}
-        onOpenChange={handleModalOpen}
-        onFinish={async (value) => {
-          const success = await handleAdd(value as API.RuleListItem);
-          if (success) {
-            handleModalOpen(false);
-            if (actionRef.current) {
-              actionRef.current.reload();
-            }
-          }
-        }}
-      >
-        <ProFormText
-          rules={[
-            {
-              required: true,
-              message: '规则名称为必填项',
-            },
-          ]}
-          width="md"
-          name="name"
-        />
-        <ProFormTextArea width="md" name="desc" />
-      </ModalForm>
-      <UpdateForm
+
+      <UpdateModal
+        columns={columns}
         onSubmit={async (value) => {
           const success = await handleUpdate(value);
           if (success) {
@@ -317,7 +366,7 @@ const TableList: React.FC = () => {
             setCurrentRow(undefined);
           }
         }}
-        updateModalOpen={updateModalOpen}
+        visible={updateModalOpen}
         values={currentRow || {}}
       />
 
@@ -344,6 +393,7 @@ const TableList: React.FC = () => {
           />
         )}
       </Drawer>
+      <CreateModal columns={columns} onCancel={()=>{handleModalOpen(false)}} onSubmit={(values)=>{handleAdd(values)}} visible={createModalOpen} />
     </PageContainer>
   );
 };
